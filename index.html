@@ -186,12 +186,6 @@
             engine = new DiceFairnessEngine(sides);
             statTarget.innerText = engine.getTargetRollsFor1_5xBias();
             
-            // Reset text sizes on init
-            statBias.classList.remove("text-lg");
-            statBias.classList.add("text-2xl");
-            statSensitivity.classList.remove("text-lg");
-            statSensitivity.classList.add("text-2xl");
-            
             updateUI();
             rollInput.focus();
         }
@@ -200,26 +194,41 @@
             const stats = engine.getCurrentStats();
             statRolls.innerText = engine.N;
 
+            // Reset classes
+            statBias.classList.remove("text-2xl", "text-lg");
+            statSensitivity.classList.remove("text-2xl", "text-lg", "text-base");
+
             if (!stats) {
+                statBias.classList.add("text-2xl");
+                statSensitivity.classList.add("text-2xl");
                 statBias.innerText = "--%";
                 statSensitivity.innerText = "--";
                 statMultiplier.innerText = "--";
                 return;
             }
 
-            // Enforce statistical minimum expected frequency (E >= 5 per face)
-            if (engine.N < engine.k * 5) {
-                statBias.classList.replace("text-2xl", "text-lg");
+            const isValidSample = engine.N >= engine.k * 5;
+            const isBlatantBias = engine.N >= 10 && stats.likelihoodBiasedPercent > 99.5;
+
+            if (isValidSample || isBlatantBias) {
+                statBias.classList.add("text-2xl");
+                statBias.innerText = `${stats.likelihoodBiasedPercent.toFixed(1)}%`;
+                
+                if (isBlatantBias && !isValidSample) {
+                    statSensitivity.classList.add("text-lg");
+                    statSensitivity.innerText = "Extreme bias";
+                    statMultiplier.innerText = "N/A";
+                } else {
+                    statSensitivity.classList.add("text-2xl");
+                    statSensitivity.innerText = `≥ ${stats.detectableBiasMultiplier.toFixed(2)}x`;
+                    statMultiplier.innerText = stats.detectableBiasMultiplier.toFixed(2);
+                }
+            } else {
+                statBias.classList.add("text-lg");
                 statBias.innerText = `Need ${engine.k * 5} rolls min.`;
-                statSensitivity.classList.replace("text-2xl", "text-lg");
+                statSensitivity.classList.add("text-lg");
                 statSensitivity.innerText = "Noise too high";
                 statMultiplier.innerText = "--";
-            } else {
-                statBias.classList.replace("text-lg", "text-2xl");
-                statBias.innerText = `${stats.likelihoodBiasedPercent.toFixed(1)}%`;
-                statSensitivity.classList.replace("text-lg", "text-2xl");
-                statSensitivity.innerText = `≥ ${stats.detectableBiasMultiplier.toFixed(2)}x`;
-                statMultiplier.innerText = stats.detectableBiasMultiplier.toFixed(2);
             }
         }
 
