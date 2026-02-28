@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Fairness Tester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #fdfbf7; /* Soft pastel cream */
+        }
+        
+        /* Hide arrows on number input */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        .pastel-shadow {
+            box-shadow: 0 10px 25px -5px rgba(244, 143, 177, 0.15), 0 8px 10px -6px rgba(244, 143, 177, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 text-slate-700">
+
+    <div class="bg-white rounded-3xl p-8 w-full max-w-md pastel-shadow border border-rose-50">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-rose-400 tracking-tight">Fair Dice?</h1>
+            <p class="text-sm text-slate-400 mt-1">Roll, input, hit enter.</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-col gap-4 mb-8">
+            <select id="diceSelect" class="w-full bg-rose-50 text-rose-700 font-semibold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-rose-200 transition-all text-center appearance-none cursor-pointer">
+                <option value="4">D4</option>
+                <option value="6">D6</option>
+                <option value="8">D8</option>
+                <option value="10">D10</option>
+                <option value="12">D12</option>
+                <option value="20" selected>D20</option>
+            </select>
+
+            <input type="number" id="rollInput" placeholder="Enter roll..." class="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 text-2xl font-bold rounded-xl px-4 py-4 text-center outline-none focus:border-rose-300 focus:bg-white transition-all placeholder:text-slate-300 placeholder:text-lg placeholder:font-normal" autocomplete="off">
+            <div id="errorMessage" class="text-rose-500 text-xs font-semibold text-center h-4 opacity-0 transition-opacity">Invalid roll for this dice.</div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 gap-4">
+            <!-- Target Rolls -->
+            <div class="col-span-2 bg-indigo-50/50 rounded-2xl p-4 text-center border border-indigo-50">
+                <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Target for 1.5x Sensitivity</p>
+                <p class="text-xl font-extrabold text-indigo-900"><span id="statRolls">0</span> <span class="text-sm text-indigo-300 font-semibold">/ <span id="statTarget">2077</span></span></p>
+            </div>
+
+            <!-- Likelihood of Bias -->
+            <div class="bg-amber-50/50 rounded-2xl p-4 text-center border border-amber-50 flex flex-col justify-center">
+                <p class="text-xs text-amber-500 font-bold uppercase tracking-wider mb-1">Confidence of Bias</p>
+                <p class="text-2xl font-extrabold text-amber-600" id="statBias">--%</p>
+            </div>
+
+            <!-- Current Sensitivity -->
+            <div class="bg-emerald-50/50 rounded-2xl p-4 text-center border border-emerald-50 flex flex-col justify-center">
+                <p class="text-xs text-emerald-500 font-bold uppercase tracking-wider mb-1">Current Sensitivity</p>
+                <p class="text-2xl font-extrabold text-emerald-600" id="statSensitivity">--</p>
+                <p class="text-[10px] text-emerald-400 font-semibold mt-1 leading-tight">Can detect face rolling <br><span id="statMultiplier">--</span>x normal freq.</p>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
+            <button id="resetBtn" class="text-xs font-bold text-slate-300 hover:text-rose-400 transition-colors uppercase tracking-widest">Reset Data</button>
+        </div>
+    </div>
+
+    <script>
+        class DiceFairnessEngine {
+            constructor(sides) {
+                this.k = sides;
+                this.counts = new Array(sides).fill(0);
+                this.N = 0;
+                
+                // Precisely calculated Lambdas for Alpha=0.05, Power=0.80
+                this.lambdas = {
+                    4: 10.90,
+                    6: 14.32,
+                    8: 17.41,
+                    10: 20.26,
+                    12: 22.95,
+                    20: 27.33 
+                };
+            }
+
+            getTargetRollsFor1_5xBias() {
+                const lambda = this.lambdas[this.k];
+                const df = this.k - 1;
+                return Math.ceil(4 * lambda * df);
+            }
+
+            addRoll(face) {
+                if (face < 1 || face > this.k) return false;
+                this.counts[face - 1]++;
+                this.N++;
+                return true;
+            }
+
+            getCurrentStats() {
+                if (this.N === 0) return null;
+
+                const expected = this.N / this.k;
+                let chiSq = 0;
+                for (const count of this.counts) {
+                    chiSq += Math.pow(count - expected, 2) / expected;
+                }
+
+                const pValue = 1 - this._chiSquareCDF(chiSq, this.k - 1);
+                const likelihoodBiased = (1 - pValue) * 100;
+
+                const lambda = this.lambdas[this.k];
+                const df = this.k - 1;
+                const delta = Math.sqrt((lambda * df) / (this.N * Math.pow(this.k, 2)));
+                const mdeMultiplier = 1 + (this.k * delta); 
+
+                return {
+                    totalRolls: this.N,
+                    likelihoodBiasedPercent: likelihoodBiased,
+                    detectableBiasMultiplier: mdeMultiplier
+                };
+            }
+
+            _doubleFactorial(n) {
+                if (n <= 1) return 1;
+                let result = 1;
+                for (let i = n; i > 1; i -= 2) result *= i;
+                return result;
+            }
+
+            _chiSquareCDF(x, df) {
+                if (x <= 0) return 0;
+
+                const erf = (t) => {
+                    const sign = t >= 0 ? 1 : -1;
+                    t = Math.abs(t);
+                    const a = [0.254829592, -0.284496736, 1.421413741, -1.453152027, 1.061405429];
+                    const p = 0.3275911;
+                    const v = 1.0 / (1.0 + p * t);
+                    let poly = 0;
+                    for(let i = 4; i >= 0; i--) poly = poly * v + a[i];
+                    return sign * (1.0 - poly * v * Math.exp(-t * t));
+                };
+
+                const n = (df - 1) / 2;
+                let sum = 0;
+                for (let i = 0; i < n; i++) {
+                    sum += Math.pow(x, i) / this._doubleFactorial(2 * i + 1);
+                }
+                
+                const term1 = erf(Math.sqrt(x / 2));
+                const term2 = Math.sqrt(2 * x / Math.PI) * Math.exp(-x / 2) * sum;
+                
+                return term1 - term2;
+            }
+        }
+
+        // --- UI Binding ---
+        let engine;
+        const diceSelect = document.getElementById('diceSelect');
+        const rollInput = document.getElementById('rollInput');
+        const errorMessage = document.getElementById('errorMessage');
+        const resetBtn = document.getElementById('resetBtn');
+        
+        // DOM Elements for Stats
+        const statRolls = document.getElementById('statRolls');
+        const statTarget = document.getElementById('statTarget');
+        const statBias = document.getElementById('statBias');
+        const statSensitivity = document.getElementById('statSensitivity');
+        const statMultiplier = document.getElementById('statMultiplier');
+
+        function initEngine() {
+            const sides = parseInt(diceSelect.value);
+            engine = new DiceFairnessEngine(sides);
+            statTarget.innerText = engine.getTargetRollsFor1_5xBias();
+            updateUI();
+            rollInput.focus();
+        }
+
+        function updateUI() {
+            const stats = engine.getCurrentStats();
+            statRolls.innerText = engine.N;
+
+            if (!stats) {
+                statBias.innerText = "--%";
+                statSensitivity.innerText = "--";
+                statMultiplier.innerText = "--";
+                return;
+            }
+
+            statBias.innerText = `${stats.likelihoodBiasedPercent.toFixed(1)}%`;
+            statSensitivity.innerText = `≥ ${stats.detectableBiasMultiplier.toFixed(2)}x`;
+            statMultiplier.innerText = stats.detectableBiasMultiplier.toFixed(2);
+        }
+
+        function showError() {
+            errorMessage.style.opacity = '1';
+            setTimeout(() => { errorMessage.style.opacity = '0'; }, 2000);
+        }
+
+        rollInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const val = parseInt(rollInput.value);
+                if (isNaN(val) || val < 1 || val > engine.k) {
+                    showError();
+                } else {
+                    engine.addRoll(val);
+                    updateUI();
+                }
+                rollInput.value = ''; // Clear input rapidly
+            }
+        });
+
+        diceSelect.addEventListener('change', initEngine);
+        resetBtn.addEventListener('click', initEngine);
+
+        // Initialize on load
+        initEngine();
+    </script>
+</body>
+</html>
