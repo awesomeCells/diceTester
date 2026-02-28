@@ -45,60 +45,66 @@
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 text-slate-700">
 
-    <div class="bg-white rounded-3xl p-8 w-full max-w-md pastel-shadow border border-rose-50 flex flex-col max-h-[90vh]">
+    <div id="mainCard" class="bg-white rounded-3xl p-8 w-full max-w-md pastel-shadow border border-rose-50 flex flex-col md:flex-row gap-8 transition-all duration-300 max-h-[95vh] overflow-y-auto custom-scrollbar">
         
-        <div class="text-center mb-8 shrink-0">
-            <h1 class="text-3xl font-extrabold text-rose-400 tracking-tight">Fair Dice?</h1>
-            <p class="text-sm text-slate-400 mt-1">Roll, input, hit enter.</p>
-        </div>
+        <!-- Left Column -->
+        <div class="flex flex-col w-full md:w-[384px] shrink-0 justify-between">
+            <div>
+                <div class="text-center mb-8 shrink-0">
+                    <h1 class="text-3xl font-extrabold text-rose-400 tracking-tight">Fair Dice?</h1>
+                    <p class="text-sm text-slate-400 mt-1">Roll, input, hit enter.</p>
+                </div>
 
-        <!-- Controls -->
-        <div class="flex flex-col gap-4 mb-8 shrink-0">
-            <select id="diceSelect" class="w-full bg-rose-50 text-rose-700 font-semibold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-rose-200 transition-all text-center appearance-none cursor-pointer">
-                <option value="4">D4</option>
-                <option value="6">D6</option>
-                <option value="8">D8</option>
-                <option value="10">D10</option>
-                <option value="12">D12</option>
-                <option value="20" selected>D20</option>
-            </select>
+                <!-- Controls -->
+                <div class="flex flex-col gap-4 mb-8 shrink-0">
+                    <select id="diceSelect" class="w-full bg-rose-50 text-rose-700 font-semibold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-rose-200 transition-all text-center appearance-none cursor-pointer">
+                        <option value="4">D4</option>
+                        <option value="6">D6</option>
+                        <option value="8">D8</option>
+                        <option value="10">D10</option>
+                        <option value="12">D12</option>
+                        <option value="20" selected>D20</option>
+                    </select>
 
-            <input type="number" id="rollInput" placeholder="Enter roll..." class="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 text-2xl font-bold rounded-xl px-4 py-4 text-center outline-none focus:border-rose-300 focus:bg-white transition-all placeholder:text-slate-300 placeholder:text-lg placeholder:font-normal" autocomplete="off">
-            <div id="errorMessage" class="text-rose-500 text-xs font-semibold text-center h-4 opacity-0 transition-opacity">Invalid roll for this dice.</div>
-        </div>
+                    <input type="number" id="rollInput" placeholder="Enter roll..." class="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 text-2xl font-bold rounded-xl px-4 py-4 text-center outline-none focus:border-rose-300 focus:bg-white transition-all placeholder:text-slate-300 placeholder:text-lg placeholder:font-normal" autocomplete="off">
+                    <div id="errorMessage" class="text-rose-500 text-xs font-semibold text-center h-4 opacity-0 transition-opacity">Invalid roll for this dice.</div>
+                </div>
 
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-2 gap-4 shrink-0">
-            <!-- Target Rolls -->
-            <div class="col-span-2 bg-indigo-50/50 rounded-2xl p-4 text-center border border-indigo-50">
-                <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Target for 1.5x Sensitivity</p>
-                <p class="text-xl font-extrabold text-indigo-900"><span id="statRolls">0</span> <span class="text-sm text-indigo-300 font-semibold">/ <span id="statTarget">2077</span></span></p>
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-2 gap-4 shrink-0">
+                    <!-- Target Rolls -->
+                    <div class="col-span-2 bg-indigo-50/50 rounded-2xl p-4 text-center border border-indigo-50">
+                        <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Target for 1.5x Sensitivity</p>
+                        <p class="text-xl font-extrabold text-indigo-900"><span id="statRolls">0</span> <span class="text-sm text-indigo-300 font-semibold">/ <span id="statTarget">2077</span></span></p>
+                    </div>
+
+                    <!-- Likelihood of Bias -->
+                    <div class="bg-amber-50/50 rounded-2xl p-4 text-center border border-amber-50 flex flex-col justify-center">
+                        <p class="text-xs text-amber-500 font-bold uppercase tracking-wider mb-1">Confidence of Bias</p>
+                        <p class="text-2xl font-extrabold text-amber-600" id="statBias">--%</p>
+                    </div>
+
+                    <!-- Current Sensitivity -->
+                    <div class="bg-emerald-50/50 rounded-2xl p-4 text-center border border-emerald-50 flex flex-col justify-center">
+                        <p class="text-xs text-emerald-500 font-bold uppercase tracking-wider mb-1">Current Sensitivity</p>
+                        <p class="text-2xl font-extrabold text-emerald-600" id="statSensitivity">--</p>
+                        <p class="text-[10px] text-emerald-400 font-semibold mt-1 leading-tight">Can detect face rolling <br><span id="statMultiplier">--</span>x normal freq.</p>
+                    </div>
+                </div>
             </div>
 
-            <!-- Likelihood of Bias -->
-            <div class="bg-amber-50/50 rounded-2xl p-4 text-center border border-amber-50 flex flex-col justify-center">
-                <p class="text-xs text-amber-500 font-bold uppercase tracking-wider mb-1">Confidence of Bias</p>
-                <p class="text-2xl font-extrabold text-amber-600" id="statBias">--%</p>
-            </div>
-
-            <!-- Current Sensitivity -->
-            <div class="bg-emerald-50/50 rounded-2xl p-4 text-center border border-emerald-50 flex flex-col justify-center">
-                <p class="text-xs text-emerald-500 font-bold uppercase tracking-wider mb-1">Current Sensitivity</p>
-                <p class="text-2xl font-extrabold text-emerald-600" id="statSensitivity">--</p>
-                <p class="text-[10px] text-emerald-400 font-semibold mt-1 leading-tight">Can detect face rolling <br><span id="statMultiplier">--</span>x normal freq.</p>
+            <div class="mt-6 text-center flex justify-center gap-6 shrink-0">
+                <button id="toggleResultsBtn" class="text-xs font-bold text-indigo-400 hover:text-indigo-500 transition-colors uppercase tracking-widest">Show Results</button>
+                <button id="resetBtn" class="text-xs font-bold text-slate-300 hover:text-rose-400 transition-colors uppercase tracking-widest">Reset Data</button>
             </div>
         </div>
 
-        <div class="mt-6 text-center flex justify-center gap-6 shrink-0">
-            <button id="toggleResultsBtn" class="text-xs font-bold text-indigo-400 hover:text-indigo-500 transition-colors uppercase tracking-widest">Show Results</button>
-            <button id="resetBtn" class="text-xs font-bold text-slate-300 hover:text-rose-400 transition-colors uppercase tracking-widest">Reset Data</button>
-        </div>
-
-        <!-- Results Distribution Container -->
-        <div id="resultsContainer" class="hidden mt-6 bg-slate-50/80 rounded-2xl p-4 border border-slate-100 flex-1 overflow-y-auto custom-scrollbar">
-            <h3 class="text-sm font-bold text-slate-500 mb-3 text-center uppercase tracking-wider">Roll Distribution</h3>
+        <!-- Right Column (Results Distribution Container) -->
+        <div id="resultsContainer" class="hidden w-full md:w-[384px] shrink-0 bg-slate-50/80 rounded-2xl p-6 border border-slate-100 flex-col">
+            <h3 class="text-sm font-bold text-slate-500 mb-6 text-center uppercase tracking-wider">Roll Distribution</h3>
             <div id="resultsList" class="flex flex-col gap-2"></div>
         </div>
+
     </div>
 
     <script>
@@ -197,6 +203,7 @@
         const errorMessage = document.getElementById('errorMessage');
         const resetBtn = document.getElementById('resetBtn');
         const toggleResultsBtn = document.getElementById('toggleResultsBtn');
+        const mainCard = document.getElementById('mainCard');
         const resultsContainer = document.getElementById('resultsContainer');
         const resultsList = document.getElementById('resultsList');
         
@@ -213,9 +220,15 @@
             resultsVisible = !resultsVisible;
             if (resultsVisible) {
                 resultsContainer.classList.remove('hidden');
+                resultsContainer.classList.add('flex');
+                mainCard.classList.remove('max-w-md');
+                mainCard.classList.add('max-w-4xl');
                 toggleResultsBtn.innerText = "Hide Results";
             } else {
                 resultsContainer.classList.add('hidden');
+                resultsContainer.classList.remove('flex');
+                mainCard.classList.remove('max-w-4xl');
+                mainCard.classList.add('max-w-md');
                 toggleResultsBtn.innerText = "Show Results";
             }
             updateUI();
@@ -266,7 +279,7 @@
 
             if (isConfirmedBiased) {
                 const biasMsg = document.createElement('div');
-                biasMsg.className = 'text-xs font-bold text-rose-500 mt-2 text-center bg-rose-50 py-1.5 rounded-lg border border-rose-100';
+                biasMsg.className = 'text-xs font-bold text-rose-500 mt-4 text-center bg-rose-50 py-2 rounded-lg border border-rose-100';
                 biasMsg.innerText = `Biased towards: ${biasedFaces.join(', ')}`;
                 resultsList.appendChild(biasMsg);
             }
