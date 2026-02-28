@@ -25,19 +25,35 @@
         .pastel-shadow {
             box-shadow: 0 10px 25px -5px rgba(244, 143, 177, 0.15), 0 8px 10px -6px rgba(244, 143, 177, 0.1);
         }
+        
+        /* Custom scrollbar for results container */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 text-slate-700">
 
-    <div class="bg-white rounded-3xl p-8 w-full max-w-md pastel-shadow border border-rose-50">
+    <div class="bg-white rounded-3xl p-8 w-full max-w-md pastel-shadow border border-rose-50 flex flex-col max-h-[90vh]">
         
-        <div class="text-center mb-8">
+        <div class="text-center mb-8 shrink-0">
             <h1 class="text-3xl font-extrabold text-rose-400 tracking-tight">Fair Dice?</h1>
             <p class="text-sm text-slate-400 mt-1">Roll, input, hit enter.</p>
         </div>
 
         <!-- Controls -->
-        <div class="flex flex-col gap-4 mb-8">
+        <div class="flex flex-col gap-4 mb-8 shrink-0">
             <select id="diceSelect" class="w-full bg-rose-50 text-rose-700 font-semibold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-rose-200 transition-all text-center appearance-none cursor-pointer">
                 <option value="4">D4</option>
                 <option value="6">D6</option>
@@ -52,7 +68,7 @@
         </div>
 
         <!-- Stats Grid -->
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 shrink-0">
             <!-- Target Rolls -->
             <div class="col-span-2 bg-indigo-50/50 rounded-2xl p-4 text-center border border-indigo-50">
                 <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Target for 1.5x Sensitivity</p>
@@ -73,8 +89,15 @@
             </div>
         </div>
 
-        <div class="mt-6 text-center">
+        <div class="mt-6 text-center flex justify-center gap-6 shrink-0">
+            <button id="toggleResultsBtn" class="text-xs font-bold text-indigo-400 hover:text-indigo-500 transition-colors uppercase tracking-widest">Show Results</button>
             <button id="resetBtn" class="text-xs font-bold text-slate-300 hover:text-rose-400 transition-colors uppercase tracking-widest">Reset Data</button>
+        </div>
+
+        <!-- Results Distribution Container -->
+        <div id="resultsContainer" class="hidden mt-6 bg-slate-50/80 rounded-2xl p-4 border border-slate-100 flex-1 overflow-y-auto custom-scrollbar">
+            <h3 class="text-sm font-bold text-slate-500 mb-3 text-center uppercase tracking-wider">Roll Distribution</h3>
+            <div id="resultsList" class="flex flex-col gap-2"></div>
         </div>
     </div>
 
@@ -173,6 +196,9 @@
         const rollInput = document.getElementById('rollInput');
         const errorMessage = document.getElementById('errorMessage');
         const resetBtn = document.getElementById('resetBtn');
+        const toggleResultsBtn = document.getElementById('toggleResultsBtn');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const resultsList = document.getElementById('resultsList');
         
         // DOM Elements for Stats
         const statRolls = document.getElementById('statRolls');
@@ -180,6 +206,20 @@
         const statBias = document.getElementById('statBias');
         const statSensitivity = document.getElementById('statSensitivity');
         const statMultiplier = document.getElementById('statMultiplier');
+
+        let resultsVisible = false;
+
+        toggleResultsBtn.addEventListener('click', () => {
+            resultsVisible = !resultsVisible;
+            if (resultsVisible) {
+                resultsContainer.classList.remove('hidden');
+                toggleResultsBtn.innerText = "Hide Results";
+            } else {
+                resultsContainer.classList.add('hidden');
+                toggleResultsBtn.innerText = "Show Results";
+            }
+            updateUI();
+        });
 
         function initEngine() {
             const sides = parseInt(diceSelect.value);
@@ -190,6 +230,48 @@
             rollInput.focus();
         }
 
+        function renderResults(stats, isValidSample, isBlatantBias) {
+            resultsList.innerHTML = '';
+            
+            if (engine.N === 0) {
+                resultsList.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">No rolls recorded yet.</p>';
+                return;
+            }
+
+            const maxCount = Math.max(...engine.counts);
+            // We consider it biased for highlighting if the engine says >95% and valid criteria are met
+            const isConfirmedBiased = stats && (isValidSample || isBlatantBias) && stats.likelihoodBiasedPercent > 95;
+            const biasedFaces = [];
+
+            engine.counts.forEach((count, i) => {
+                const face = i + 1;
+                // Bar width relative to the max count for better visual scaling
+                const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                const isBiasedFace = isConfirmedBiased && count === maxCount;
+                
+                if (isBiasedFace) biasedFaces.push(face);
+
+                const row = document.createElement('div');
+                row.className = 'flex items-center text-sm mb-1';
+                
+                row.innerHTML = `
+                    <div class="w-8 font-extrabold text-right pr-2 ${isBiasedFace ? 'text-rose-500' : 'text-slate-500'}">${face}</div>
+                    <div class="flex-1 h-4 bg-slate-200 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-300 ${isBiasedFace ? 'bg-rose-400' : 'bg-indigo-300'}" style="width: ${barWidth}%"></div>
+                    </div>
+                    <div class="w-10 text-right font-semibold text-xs ${isBiasedFace ? 'text-rose-500' : 'text-slate-600'}">${count}</div>
+                `;
+                resultsList.appendChild(row);
+            });
+
+            if (isConfirmedBiased) {
+                const biasMsg = document.createElement('div');
+                biasMsg.className = 'text-xs font-bold text-rose-500 mt-2 text-center bg-rose-50 py-1.5 rounded-lg border border-rose-100';
+                biasMsg.innerText = `Biased towards: ${biasedFaces.join(', ')}`;
+                resultsList.appendChild(biasMsg);
+            }
+        }
+
         function updateUI() {
             const stats = engine.getCurrentStats();
             statRolls.innerText = engine.N;
@@ -198,37 +280,43 @@
             statBias.classList.remove("text-2xl", "text-lg");
             statSensitivity.classList.remove("text-2xl", "text-lg", "text-base");
 
+            let isValidSample = false;
+            let isBlatantBias = false;
+
             if (!stats) {
                 statBias.classList.add("text-2xl");
                 statSensitivity.classList.add("text-2xl");
                 statBias.innerText = "--%";
                 statSensitivity.innerText = "--";
                 statMultiplier.innerText = "--";
-                return;
+            } else {
+                isValidSample = engine.N >= engine.k * 5;
+                isBlatantBias = engine.N >= 10 && stats.likelihoodBiasedPercent > 99.5;
+
+                if (isValidSample || isBlatantBias) {
+                    statBias.classList.add("text-2xl");
+                    statBias.innerText = `${stats.likelihoodBiasedPercent.toFixed(1)}%`;
+                    
+                    if (isBlatantBias && !isValidSample) {
+                        statSensitivity.classList.add("text-lg");
+                        statSensitivity.innerText = "Extreme bias";
+                        statMultiplier.innerText = "N/A";
+                    } else {
+                        statSensitivity.classList.add("text-2xl");
+                        statSensitivity.innerText = `≥ ${stats.detectableBiasMultiplier.toFixed(2)}x`;
+                        statMultiplier.innerText = stats.detectableBiasMultiplier.toFixed(2);
+                    }
+                } else {
+                    statBias.classList.add("text-lg");
+                    statBias.innerText = `Need ${engine.k * 5} rolls min.`;
+                    statSensitivity.classList.add("text-lg");
+                    statSensitivity.innerText = "Noise too high";
+                    statMultiplier.innerText = "--";
+                }
             }
 
-            const isValidSample = engine.N >= engine.k * 5;
-            const isBlatantBias = engine.N >= 10 && stats.likelihoodBiasedPercent > 99.5;
-
-            if (isValidSample || isBlatantBias) {
-                statBias.classList.add("text-2xl");
-                statBias.innerText = `${stats.likelihoodBiasedPercent.toFixed(1)}%`;
-                
-                if (isBlatantBias && !isValidSample) {
-                    statSensitivity.classList.add("text-lg");
-                    statSensitivity.innerText = "Extreme bias";
-                    statMultiplier.innerText = "N/A";
-                } else {
-                    statSensitivity.classList.add("text-2xl");
-                    statSensitivity.innerText = `≥ ${stats.detectableBiasMultiplier.toFixed(2)}x`;
-                    statMultiplier.innerText = stats.detectableBiasMultiplier.toFixed(2);
-                }
-            } else {
-                statBias.classList.add("text-lg");
-                statBias.innerText = `Need ${engine.k * 5} rolls min.`;
-                statSensitivity.classList.add("text-lg");
-                statSensitivity.innerText = "Noise too high";
-                statMultiplier.innerText = "--";
+            if (resultsVisible) {
+                renderResults(stats, isValidSample, isBlatantBias);
             }
         }
 
